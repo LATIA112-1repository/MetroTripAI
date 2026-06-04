@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>MetroTrip AI｜智慧捷運與實時地圖導航矩陣</title>
+    <meta name="description" content="MetroTrip AI 智慧捷運旅遊規劃系統">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; 
+            background: radial-gradient(at 0% 0%, #f8fafc 0px, transparent 50%), radial-gradient(at 50% 0%, #eff6ff 0px, transparent 50%), radial-gradient(at 100% 0%, #f5f3ff 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .hover-lift {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hover-lift:hover {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
+            transition: transform 0.1s;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+    <header class="relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white shadow-xl py-6 px-6 border-b border-white/10 flex-shrink-0">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.15),transparent_45%)]"></div>
+        <div class="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-gradient-to-tr from-blue-500 to-indigo-500 p-3 rounded-2xl shadow-lg shadow-indigo-500/20 text-white text-2xl animate__animated animate__fadeInLeft">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-blue-200 bg-clip-text text-transparent">MetroTrip AI</h1>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1 font-medium">智慧捷運旅遊規劃系統</p>
+                </div>
+            </div>
+        <main class="flex-1 w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+        
+        <section class="md:col-span-5 space-y-6 md:max-h-[calc(100vh-160px)] md:overflow-y-auto pr-0 md:pr-1.5">
+            
+            <div class="glass-panel rounded-3xl shadow-xl shadow-slate-200/50 p-5 sm:p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 gap-2">
+                    <h2 class="font-bold text-lg flex items-center gap-2.5 text-slate-900">
+                        <span class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white w-7 h-7 rounded-xl flex items-center justify-center text-xs shadow-md shadow-indigo-500/20">1</span>
+                        探索捷運核心站點
+                    </h2>
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                        <button onclick="clearAllStations()" class="text-xs font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-500 px-3 py-1.5 rounded-xl transition-all duration-300 flex items-center gap-1 border border-rose-200/40">
+                            <i class="fa-solid fa-trash-can text-[10px]"></i> 清除
+                        </button>
+                        <span id="selected-count" class="text-xs font-bold bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl shadow-xs">已選 0 站</span>
+                    </div>
+                </div>
+
+                <div class="relative group">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400 text-sm group-focus-within:text-indigo-500 transition-colors"></i>
+                    <input type="text" id="station-search" placeholder="搜尋核心捷運站...（如：西門、中山、淡水）" 
+                        class="w-full pl-11 pr-4 py-2.5 text-sm bg-slate-50/80 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all shadow-xs">
+                </div>
+
+                <div class="flex sm:grid sm:grid-cols-6 gap-1 p-1 bg-slate-100/80 rounded-2xl text-[11px] font-bold text-center overflow-x-auto whitespace-nowrap snap-x">
+                    <button onclick="filterLine('ALL')" class="line-tab active py-2 px-4 sm:px-0 rounded-xl bg-white shadow-sm text-slate-900 transition-all snap-center">全部</button>
+                    <button onclick="filterLine('BL')" class="line-tab py-2 px-4 sm:px-0 rounded-xl text-slate-600 hover:bg-white/60 transition-all border-b-2 border-[#0070BD] snap-center">板南</button>
+                    <button onclick="filterLine('R')" class="line-tab py-2 px-4 sm:px-0 rounded-xl text-slate-600 hover:bg-white/60 transition-all border-b-2 border-[#E3002C] snap-center">淡水</button>
+                    <button onclick="filterLine('G')" class="line-tab py-2 px-4 sm:px-0 rounded-xl text-slate-600 hover:bg-white/60 transition-all border-b-2 border-[#008659] snap-center">松山</button>
+                    <button onclick="filterLine('O')" class="line-tab py-2 px-4 sm:px-0 rounded-xl text-slate-600 hover:bg-white/60 transition-all border-b-2 border-[#FFA300] snap-center">中和</button>
+                    <button onclick="filterLine('BR')" class="line-tab py-2 px-4 sm:px-0 rounded-xl text-slate-600 hover:bg-white/60 transition-all border-b-2 border-[#C48C31] snap-center">文湖</button>
+                </div>
+
+                <div id="station-container" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-48 overflow-y-auto p-1.5 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-3xl shadow-xl shadow-slate-200/50 p-5 sm:p-6 space-y-4">
+                <h2 class="font-bold text-lg flex items-center gap-2.5 text-slate-900 border-b border-slate-100 pb-4">
+                    <span class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white w-7 h-7 rounded-xl flex items-center justify-center text-xs shadow-md shadow-indigo-500/20">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                    </span>
+                    出發起點智慧定位
+                </h2>
+                <div class="p-4 bg-gradient-to-r from-slate-50 to-blue-50/40 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <span class="text-xs text-slate-400 font-bold tracking-wide uppercase">導航起點模式</span>
+                        <span id="gps-status" class="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-slate-200 text-slate-600 border border-slate-300/40 self-start sm:self-auto">
+                            預設以台北車站為起點
+                        </span>
+                    </div>
+                    <button onclick="detectUserLocation()" id="gps-btn" class="w-full py-2.5 px-4 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-slate-700 hover:text-indigo-600 font-bold rounded-xl text-xs transition-all duration-300 flex items-center justify-center gap-2 shadow-xs">
+                        <i class="fa-solid fa-location-arrow text-indigo-500 animate-pulse"></i>
+                        偵測我目前位置
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-3xl shadow-xl shadow-slate-200/50 p-5 sm:p-6 space-y-4">
+                <h2 class="font-bold text-lg flex items-center gap-2.5 text-slate-900 border-b border-slate-100 pb-4">
+                    <span class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white w-7 h-7 rounded-xl flex items-center justify-center text-xs shadow-md shadow-indigo-500/20">2</span>
+                    設定預計出發時間 (24h)
+                </h2>
+                <div class="flex items-center gap-4 bg-gradient-to-r from-slate-50 to-indigo-50/30 p-4 rounded-2xl border border-slate-200">
+                    <div class="text-indigo-600 text-xl pl-1"><i class="fa-regular fa-clock animate-pulse"></i></div>
+                    <div class="flex-1">
+                        <label for="departure-time" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">隨心更改您的出發時間</label>
+                        <input type="time" id="departure-time" value="09:30" 
+                            class="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-mono font-bold text-slate-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-3xl shadow-xl shadow-slate-200/50 p-5 sm:p-6 space-y-4">
+                <h2 class="font-bold text-lg flex items-center gap-2.5 text-slate-900 border-b border-slate-100 pb-4">
+                    <span class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white w-7 h-7 rounded-xl flex items-center justify-center text-xs shadow-md shadow-indigo-500/20">3</span>
+                    挑選旅遊主題 <span class="text-xs text-slate-400 font-normal ml-1">(可多選)</span>
+                </h2>
+                <div id="theme-container" class="grid grid-cols-2 gap-2.5">
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-3xl shadow-xl shadow-slate-200/50 p-5 sm:p-6 space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                    <h2 class="font-bold text-lg flex items-center gap-2.5 text-slate-900">
+                        <span class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white w-7 h-7 rounded-xl flex items-center justify-center text-xs shadow-md shadow-indigo-500/20">4</span>
+                        整日行程總預算上限
+                    </h2>
+                    <div class="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-xl text-xs font-mono font-bold shadow-xs">
+                        TWD <span id="budget-display" class="text-sm font-extrabold text-amber-600">800</span> 元
+                    </div>
+                </div>
+                <div class="space-y-3 pt-2">
+                    <input type="range" id="budget-slider" min="0" max="1500" step="50" value="800" oninput="updateBudgetDisplay(this.value)"
+                        class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                </div>
+            </div>
+
+            <button onclick="generateItinerary()" class="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-indigo-500/20 transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-2.5 text-base tracking-wide">
+                <i class="fa-solid fa-wand-magic-sparkles text-sm animate-bounce"></i>
+                一鍵智慧生成黃金動線行程
+            </button>
+
+        </section>
+
+        <section class="md:col-span-7 space-y-6">
+            
+            <div id="navigation-banner" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3.5 text-emerald-900 text-xs animate__animated animate__fadeIn">
+                <div class="p-2 bg-emerald-100 text-emerald-700 rounded-xl text-sm flex-shrink-0"><i class="fa-solid fa-diamond-turn-right"></i></div>
+                <div>
+                    <span class="font-bold block text-sm mb-0.5">🚀 智慧 A-to-B 實時路況導航已啟動！</span>
+                    點擊行程內任何一個<b>「景點名稱」</b>，系統將自動開啟 Google Maps 導航，並<b>自動為你算好「前一站到這一站」的完整大眾運輸轉乘、走路步行時間與班次</b>。
+                </div>
+            </div>
+
+            <div id="empty-state" class="glass-panel rounded-3xl shadow-xl shadow-slate-200/50 p-8 sm:p-16 text-center space-y-5 animate__animated animate__fadeIn">
+                <div class="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-tr from-indigo-50 to-blue-50 text-indigo-500 rounded-3xl flex items-center justify-center text-3xl sm:text-4xl mx-auto shadow-inner border border-indigo-100/50">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                </div>
+                <div class="max-w-md mx-auto space-y-2.5">
+                    <h3 class="font-bold text-xl text-slate-800">開啟您的捷運旅程規劃</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed">請於左側設定您想探索的核心站點、出發時刻與旅遊偏好。系統將優先為您實時演算一整日符合「黃金時段」的高分動線！</p>
+                </div>
+            </div>
+
+            <div id="itinerary-dashboard" class="hidden space-y-6 animate__animated animate__fadeIn">
+                
+                <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div class="glass-panel p-4 rounded-2xl shadow-sm flex items-center gap-3 border border-slate-100">
+                        <div class="p-2.5 bg-blue-50 text-blue-600 rounded-xl text-md flex-shrink-0"><i class="fa-solid fa-route"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">總踩點數</p>
+                            <p id="stat-spots" class="text-sm sm:text-base font-extrabold text-slate-800 truncate">-</p>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-2xl shadow-sm flex items-center gap-3 border border-slate-100">
+                        <div class="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-md flex-shrink-0"><i class="fa-solid fa-hourglass-start"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">景點總歷時</p>
+                            <p id="stat-duration" class="text-sm sm:text-base font-extrabold text-slate-800 truncate">-</p>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-2xl shadow-sm flex items-center gap-3 border border-slate-100">
+                        <div class="p-2.5 bg-amber-50 text-amber-600 rounded-xl text-md flex-shrink-0"><i class="fa-solid fa-train-subway"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">交通總耗時</p>
+                            <p id="stat-transit" class="text-sm sm:text-base font-extrabold text-emerald-600 truncate">-</p>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-2xl shadow-sm flex items-center gap-3 border border-slate-100">
+                        <div class="p-2.5 bg-rose-50 text-rose-600 rounded-xl text-md flex-shrink-0"><i class="fa-solid fa-wallet"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">預估總消費</p>
+                            <p id="stat-cost" class="text-sm sm:text-base font-extrabold text-slate-800 truncate">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-3xl shadow-xl shadow-slate-200/50 p-5 sm:p-8 space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-2">
+                        <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2.5">
+                            <i class="fa-solid fa-timeline text-indigo-600"></i> 動態時間軸與智慧導航 (24H)
+                        </h3>
+                    </div>
+
+                    <div id="timeline-flow" class="relative border-l-2 border-slate-200/80 ml-4 pl-5 sm:pl-8 space-y-10 my-4">
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+            <div class="glass-panel rounded-3xl shadow-xl shadow-slate-200/50 p-6 space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                    <h2 class="font-bold text-lg flex items-center gap-2.5 text-slate-900">
+                        <span class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white w-7 h-7 rounded-xl flex items-center justify-center text-xs shadow-md shadow-indigo-500/20">4</span>
+                        整日行程總預算上限
+                    </h2>
+                    <div class="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-xl text-xs font-mono font-bold shadow-xs">
+                        TWD <span id="budget-display" class="text-sm font-extrabold text-amber-600">800</span> 元
+                    </div>
+                </div>
+                <div class="space-y-3 pt-2">
+                    <input type="range" id="budget-slider" min="0" max="1500" step="50" value="800" oninput="updateBudgetDisplay(this.value)"
+                        class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                </div>
+            </div>
+
+            <button onclick="generateItinerary()" class="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-indigo-500/20 transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-2.5 text-base tracking-wide">
+                <i class="fa-solid fa-wand-magic-sparkles text-sm animate-bounce"></i>
+                一鍵智慧生成黃金動線行程
+            </button>
+
+        </section>
+
+        <section class="lg:col-span-7 space-y-6">
+            
+            <div id="navigation-banner" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3.5 text-emerald-900 text-xs animate__animated animate__fadeIn">
+                <div class="p-2 bg-emerald-100 text-emerald-700 rounded-xl text-sm"><i class="fa-solid fa-diamond-turn-right"></i></div>
+                <div>
+                    <span class="font-bold block text-sm mb-0.5">🚀 智慧 A-to-B 實時路況導航已啟動！</span>
+                    點擊行程內任何一個<b>「景點名稱」</b>，系統將自動開啟 Google Maps 導航，並<b>自動為你算好「前一站到這一站」的完整大眾運輸轉乘、走路步行時間與班次</b>。
+                </div>
+            </div>
+
+            <div id="empty-state" class="glass-panel rounded-3xl shadow-xl shadow-slate-200/50 p-16 text-center space-y-5 animate__animated animate__fadeIn">
+                <div class="w-24 h-24 bg-gradient-to-tr from-indigo-50 to-blue-50 text-indigo-500 rounded-3xl flex items-center justify-center text-4xl mx-auto shadow-inner border border-indigo-100/50">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                </div>
+                <div class="max-w-md mx-auto space-y-2.5">
+                    <h3 class="font-bold text-xl text-slate-800">開啟您的捷運旅程規劃</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed">請於左側設定您想探索的核心站點、出發時刻與旅遊偏好。系統將優先為您實時演算一整日符合「黃金時段」的高分動線！</p>
+                </div>
+            </div>
+
+            <div id="itinerary-dashboard" class="hidden space-y-6 animate__animated animate__fadeIn">
+                
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="glass-panel p-4 rounded-2xl shadow-sm flex items-center gap-3.5 border border-slate-100">
+                        <div class="p-3 bg-blue-50 text-blue-600 rounded-xl text-md"><i class="fa-solid fa-route"></i></div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">總踩點數</p>
+                            <p id="stat-spots" class="text-base font-extrabold text-slate-800">-</p>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-2xl shadow-sm flex items-center gap-3.5 border border-slate-100">
+                        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl text-md"><i class="fa-solid fa-hourglass-start"></i></div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">景點總歷時</p>
+                            <p id="stat-duration" class="text-base font-extrabold text-slate-800">-</p>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-2xl shadow-sm flex items-center gap-3.5 border border-slate-100">
+                        <div class="p-3 bg-amber-50 text-amber-600 rounded-xl text-md"><i class="fa-solid fa-train-subway"></i></div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">交通預估總耗時</p>
+                            <p id="stat-transit" class="text-base font-extrabold text-emerald-600">-</p>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-2xl shadow-sm flex items-center gap-3.5 border border-slate-100">
+                        <div class="p-3 bg-rose-50 text-rose-600 rounded-xl text-md"><i class="fa-solid fa-wallet"></i></div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">預估總消費</p>
+                            <p id="stat-cost" class="text-base font-extrabold text-slate-800">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-3xl shadow-xl shadow-slate-200/50 p-6 sm:p-8 space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-2">
+                        <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2.5">
+                            <i class="fa-solid fa-timeline text-indigo-600"></i> 動態時間軸與智慧導航 (24H)
+                        </h3>
+                    </div>
+
+                    <div id="timeline-flow" class="relative border-l-2 border-slate-200/80 ml-4 pl-6 sm:pl-8 space-y-10 my-4">
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-950 text-slate-500 py-6 px-6 text-center text-xs mt-auto border-t border-slate-900">
+        <p class="tracking-wide">© 2026 MetroTrip AI 智慧捷運旅遊系統 · 全功能複合導航版</p>
+    </footer>
+
+    <script>
+        const LINE_MAP = {
+            "BL": { name: "板南線", color: "#0070BD" },
+            "R": { name: "淡水信義線", color: "#E3002C" },
+            "G": { name: "松山新店線", color: "#008659" },
+            "O": { name: "中和新蘆線", color: "#FFA300" },
+            "BR": { name: "文湖線", color: "#C48C31" }
+        };
+
+        const THEMES = [
+            { id: "food", label: "美食聚落 🍜" }, { id: "history", label: "文化古蹟 🏛️" },
+            { id: "shopping", label: "購物商圈 🛍️" }, { id: "nature", label: "山海自然 🌿" },
+            { id: "family", label: "闔家親子 👨‍👩‍👧‍👦" }, { id: "photo", label: "美學打卡 📷" }
+        ];
+
+        const METRO_STATIONS = [
+            { name: "淡水", lines: ["R"], indexInLine: { "R": 1 }, lat: 25.167849, lng: 121.445579 },
+            { name: "北投", lines: ["R"], indexInLine: { "R": 5 }, lat: 25.131792, lng: 121.498772 },
+            { name: "士林", lines: ["R"], indexInLine: { "R": 9 }, lat: 25.093245, lng: 121.526279 },
+            { name: "劍潭", lines: ["R"], indexInLine: { "R": 10 }, lat: 25.084183, lng: 121.525257 },
+            { name: "圓山", lines: ["R"], indexInLine: { "R": 11 }, lat: 25.071627, lng: 121.520448 },
+            { name: "大橋頭", lines: ["O"], indexInLine: { "O": 5 }, lat: 25.063574, lng: 121.512683 },
+            { name: "中山", lines: ["G", "R"], indexInLine: { "G": 5, "R": 13 }, lat: 25.052672, lng: 121.520392 },
+            { name: "台北車站", lines: ["BL", "R"], indexInLine: { "BL": 5, "R": 14 }, lat: 25.046476, lng: 121.517398 },
+            { name: "西門", lines: ["G", "BL"], indexInLine: { "G": 4, "BL": 4 }, lat: 25.042128, lng: 121.508276 },
+            { name: "龍山寺", lines: ["BL"], indexInLine: { "BL": 3 }, lat: 25.035352, lng: 121.499684 },
+            { name: "中正紀念堂", lines: ["G", "R"], indexInLine: { "G": 3, "R": 15 }, lat: 25.035414, lng: 121.518177 },
+            { name: "東門", lines: ["R", "O"], indexInLine: { "R": 16, "O": 8 }, lat: 25.033878, lng: 121.528775 },
+            { name: "行天宮", lines: ["O"], indexInLine: { "O": 10 }, lat: 25.059441, lng: 121.533235 },
+            { name: "松江南京", lines: ["G", "O"], indexInLine: { "G": 6, "O": 9 }, lat: 25.051939, lng: 121.533276 },
+            { name: "忠孝新生", lines: ["O", "BL"], indexInLine: { "O": 7, "BL": 6 }, lat: 25.041697, lng: 121.532918 },
+            { name: "大安森林公園", lines: ["R"], indexInLine: { "R": 17 }, lat: 25.033423, lng: 121.536098 },
+            { name: "大安", lines: ["R", "BR"], indexInLine: { "R": 18, "BR": 8 }, lat: 25.032947, lng: 121.543553 },
+            { name: "信義安和", lines: ["R"], indexInLine: { "R": 19 }, lat: 25.033221, lng: 121.550702 },
+            { name: "台北101/世貿", lines: ["R"], indexInLine: { "R": 20 }, lat: 25.032992, lng: 121.564483 },
+            { name: "象山", lines: ["R"], indexInLine: { "R": 21 }, lat: 25.032549, lng: 121.571408 },
+            { name: "忠孝復興", lines: ["BL", "BR"], indexInLine: { "BL": 7, "BR": 9 }, lat: 25.041535, lng: 121.543594 },
+            { name: "南京復興", lines: ["G", "BR"], indexInLine: { "G": 7, "BR": 10 }, lat: 25.051915, lng: 121.544158 },
+            { name: "市政府", lines: ["BL"], indexInLine: { "BL": 9 }, lat: 25.041172, lng: 121.565218 },
+            { name: "松山", lines: ["G"], indexInLine: { "G": 10 }, lat: 25.050074, lng: 121.577694 },
+            { name: "南港", lines: ["BL"], indexInLine: { "BL": 13 }, lat: 25.052116, lng: 121.606992 },
+            { name: "公館", lines: ["G"], indexInLine: { "G": 1 }, lat: 25.013233, lng: 121.534212 },
+            { name: "新店", lines: ["G"], indexInLine: { "G": 0 }, lat: 24.957972, lng: 121.537554 },
+            { name: "劍南路", lines: ["BR"], indexInLine: { "BR": 13 }, lat: 25.084897, lng: 121.555557 },
+            { name: "大湖公園", lines: ["BR"], indexInLine: { "BR": 17 }, lat: 25.083981, lng: 121.599723 },
+            { name: "動物園", lines: ["BR"], indexInLine: { "BR": 1 }, lat: 24.998246, lng: 121.581024 }
+        ];
+
+        const SCENIC_SPOTS = [
+            { id: 1, name: "淡水金色海岸步道", station: "淡水", themes: ["nature", "photo"], open: 0, close: 24, duration: 1.5, optimalSlot: "evening", optimalSlotDesc: "16:00-18:00 (絕美日落黃金時刻)", avgCost: 0, desc: "全台最著名的夕陽觀賞點之一，看著黃金陽光灑落淡水河面，遠眺觀音山。" },
+            { id: 2, name: "淡水紅毛城古蹟園區", station: "淡水", themes: ["history"], open: 9, close: 17, duration: 1.5, optimalSlot: "morning", optimalSlotDesc: "09:30-11:30 (避開正午戶外曝曬)", avgCost: 80, desc: "擁有超過三百年歷史的紅磚荷蘭堡壘，居高臨下，是見證台灣大航海時代的國定古蹟。" },
+            { id: 3, name: "北投地熱谷公園", station: "北投", themes: ["nature"], open: 9, close: 18, duration: 1, optimalSlot: "morning", optimalSlotDesc: "09:00-10:30 (晨光好、遊客較少)", avgCost: 0, desc: "終年瀰漫著硫磺煙霧的青磺溫泉湧出口，宛如仙境，有「礦泉玉霧」的美稱。" },
+            { id: 4, name: "北投溫泉博物館", station: "北投", themes: ["history", "photo"], open: 9, close: 17, duration: 1.2, optimalSlot: "morning", optimalSlotDesc: "10:00-12:00 (室內日式建築採光極佳)", avgCost: 0, desc: "日治時期的東亞最大公共浴場，保存了完整的和洋折衷黑瓦建築與宏偉的大浴池。" },
+            { id: 5, name: "國立故宮博物院", station: "士林", themes: ["history", "family"], open: 9, close: 17, duration: 3, optimalSlot: "morning", optimalSlotDesc: "09:00-12:00 (充裕時間深度觀展)", avgCost: 350, desc: "中華文化無價寶藏的殿堂，翠玉白菜、肉形石名揚國際，歷史愛好者必朝盛。" },
+            { id: 6, name: "士林夜市美食商圈", station: "劍潭", themes: ["food", "shopping"], open: 16, close: 24, duration: 2, optimalSlot: "evening", optimalSlotDesc: "18:00-20:30 (攤位全開、最熱鬧時段)", avgCost: 200, desc: "全台最知名夜市，生炒花枝羹、藥燉排骨、豪大大雞排，滿足吃喝玩樂所有需求。" },
+            { id: 7, name: "MAJI MAJI 集食行樂", station: "圓山", themes: ["food", "photo", "family"], open: 11, close: 22, duration: 2, optimalSlot: "afternoon", optimalSlotDesc: "14:00-17:00 (悠閒午後貨櫃文創風)", avgCost: 250, desc: "由貨櫃與舊廠房改建的文創市集與異國美食街，週末常有音樂表演，氛圍非常悠閒。" },
+            { id: 8, name: "心中山線形公園 & 赤峰街", station: "中山", themes: ["shopping", "photo", "food"], open: 0, close: 24, duration: 2, optimalSlot: "afternoon", optimalSlotDesc: "15:00-18:00 (適合文青逛街與喝下午茶)", avgCost: 200, desc: "現代幾何清水模線形公園，串聯起赤峰街的老宅文青咖啡廳與日式獨立選物店。" },
+            { id: 9, name: "微風台北車站美食廣場", station: "台北車站", themes: ["food", "shopping"], open: 10, close: 22, duration: 1.5, optimalSlot: "afternoon", avgCost: 300, desc: "全台最大的車站美食匯聚地，不論是排隊伴手禮還是各國連鎖名店，都能在此一站滿足。" },
+            { id: 10, name: "中正紀念堂兩廳院廣場", station: "中正紀念堂", themes: ["history", "photo"], open: 9, close: 18, duration: 1.5, optimalSlot: "morning", avgCost: 0, desc: "宏偉的藍白主體建築與自由廣場牌樓，是台北最具指標性的地標與外國遊客攝影重點。" },
+            { id: 11, name: "永康街風格商圈", station: "東門", themes: ["food", "shopping"], open: 11, close: 21, duration: 1.5, optimalSlot: "afternoon", optimalSlotDesc: "12:00-14:30 (剛好享用豐盛午餐)", avgCost: 400, desc: "著名的國際美食街，除鼎泰豐創始店外，還有思慕昔芒果冰以及多條極具質感的選物弄巷。" },
+            { id: 12, name: "大安森林公園生態池", station: "大安森林公園", themes: ["nature", "family"], open: 0, close: 24, duration: 1.5, optimalSlot: "morning", optimalSlotDesc: "08:00-10:00 (都市森林晨間芬多精)", avgCost: 0, desc: "被譽為「台北之肺」的大型都會公園，其露天音樂台與豐富的鳥類生態池深受市民喜愛。" },
+            { id: 13, name: "信維市場眷村風味美食", station: "大安", themes: ["food"], open: 11, close: 20, duration: 1, optimalSlot: "afternoon", optimalSlotDesc: "11:30-13:00 (在地老饕的黃金午餐期)", avgCost: 120, desc: "隱藏在精華區的老舊市場，包含刀切麵、蟹殼黃與老字號眷村滷味，是老饕的口袋名單。" },
+            { id: 14, name: "通化街臨江街觀光夜市", station: "信義安和", themes: ["food"], open: 17, close: 24, duration: 1.5, optimalSlot: "evening", optimalSlotDesc: "18:30-21:00 (美味小吃排隊黃金期)", avgCost: 150, desc: "米其林必比登推薦的冰火湯圓、紅花麻辣鹽水雞皆在此，是信義區旁最接地氣的深夜廚房。" },
+            { id: 15, name: "台北101觀景台 & 四四南村", station: "台北101/世貿", themes: ["shopping", "photo", "history"], open: 11, close: 21, duration: 2, optimalSlot: "afternoon", optimalSlotDesc: "15:30-18:00 (高空飽覽日落到城市夜景)", avgCost: 600, desc: "搭乘超高速電梯直達雲端，下樓後步行至四四南村，體驗新舊時代交錯的魔幻張力。" },
+            { id: 16, name: "象山親山步道六巨石", station: "象山", themes: ["nature", "photo"], open: 0, close: 24, duration: 1.5, optimalSlot: "evening", optimalSlotDesc: "16:30-18:30 (不可錯過的日落都市華燈)", avgCost: 0, desc: "僅需攀爬20分鐘階梯，即可抵達全台北觀賞 101 大樓夕陽與都市夜景的最佳瞭望點。" },
+            { id: 17, name: "西門町徒步區 & 西門紅樓", station: "西門", themes: ["shopping", "photo"], open: 11, close: 23, duration: 2, optimalSlot: "afternoon", optimalSlotDesc: "14:00-17:30 (潮流文化與文創市集融合)", avgCost: 200, desc: "台北潮流文化聖地，包含彩虹地景、美國街塗鴉，以及紅樓後方熱鬧非凡的露天小酌酒吧區。" },
+            { id: 18, name: "龍山寺 & 剝皮寮歷史街區", station: "龍山寺", themes: ["history", "photo"], open: 6, close: 22, duration: 1.5, optimalSlot: "morning", optimalSlotDesc: "09:00-11:00 (香火裊裊、清晨古街巡禮)", avgCost: 0, desc: "國家二級古蹟廟宇雕樑畫棟，緊鄰清代橫跨日治時期的紅磚老街廓剝皮寮，極具歷史底淵。" },
+            { id: 19, name: "華山1914文創產業園區", station: "忠孝新生", themes: ["photo", "shopping", "family"], open: 9, close: 21, duration: 2, optimalSlot: "afternoon", optimalSlotDesc: "13:30-16:30 (最適合看展與草地野餐)", avgCost: 150, desc: "前身為台北酒廠，現今改建為風格展覽、獨立電影院、草皮野餐與文創商店齊聚的綠意基地。" },
+            { id: 20, name: "遠東SOGO百貨忠孝館", station: "忠孝復興", themes: ["shopping"], open: 11, close: 22, duration: 2, optimalSlot: "afternoon", avgCost: 500, desc: "台北元祖級百貨地標與東區名人巷，匯集了最新流行時尚服飾、美妝與各式精緻餐飲。" },
+            { id: 21, name: "信義商圈空中空橋動線", station: "市政府", themes: ["shopping"], open: 11, close: 22, duration: 2, optimalSlot: "afternoon", optimalSlotDesc: "16:00-19:00 (華燈初上、街頭藝人匯聚)", avgCost: 500, desc: "全球百貨密度最高的區域，透過空橋串聯新光三越、微風、ATT，夜晚夜生活與街頭藝人極熱鬧。" },
+            { id: 22, name: "南港車站 Citylink", station: "南港", themes: ["shopping", "family"], open: 11, close: 21.5, duration: 2, optimalSlot: "afternoon", avgCost: 300, desc: "與車站共構的複合式商場，擁有超大幾何圖書牆裝置藝術、主題餐廳與完善的親子室內遊樂區。" },
+            { id: 23, name: "饒河街夜市 & 松山慈祐宮", station: "松山", themes: ["food", "history"], open: 17, close: 24, duration: 1.5, optimalSlot: "evening", optimalSlotDesc: "17:30-20:00 (廟宇參拜與夜市美食完美動線)", avgCost: 180, desc: "百年媽祖廟旁就是長達數百公尺的觀光夜市，炭烤胡椒餅、藥燉排骨是必比登推薦常客。" },
+            { id: 24, name: "遼寧街夜市傳統小吃", station: "南京復興", themes: ["food"], open: 16, close: 23, duration: 1, optimalSlot: "evening", avgCost: 150, desc: "走精緻路線的在地傳統小吃街，以燙魷魚、海鮮熱炒、客家麻糬與紅心粉圓聞名。" },
+            { id: 25, name: "四平陽光商圈女人街", station: "松江南京", themes: ["shopping", "food"], open: 10, close: 20, duration: 1.5, optimalSlot: "afternoon", optimalSlotDesc: "12:00-14:00 (繽紛傘海下享受陽光午餐)", avgCost: 150, desc: "上方掛滿繽紛五彩傘、充滿露天陽光氣息的步行商圈，以豬腳飯、紅豆餅與服飾批發著稱。" },
+            { id: 26, name: "國立臺灣大學校區 & 寶藏巖", station: "公館", themes: ["nature", "history", "photo"], open: 0, close: 24, duration: 2, optimalSlot: "morning", optimalSlotDesc: "08:30-11:30 (椰林大道散步與藝術村慢活)", avgCost: 0, desc: "漫步台大椰林大道與醉月湖，隨後探索依山錯落、洋溢國際當代藝術氛圍的寶藏巖村落。" },
+            { id: 27, name: "碧潭風景區水岸步道", station: "新店", themes: ["nature", "family"], open: 0, close: 24, duration: 2, optimalSlot: "afternoon", optimalSlotDesc: "15:00-18:00 (乘天鵝船與看水岸光雕)", avgCost: 100, desc: "極具名氣的天鵝船碧潭吊橋，白天看青山綠水，夜間有壯麗的岩壁光雕秀與水岸景觀餐廳。" },
+            { id: 28, name: "行天宮恩主公廟", station: "行天宮", themes: ["history", "food"], open: 4, close: 22, duration: 1, optimalSlot: "morning", optimalSlotDesc: "08:00-09:30 (感受平靜與傳統收驚服務)", avgCost: 0, desc: "供奉關聖帝君的權威廟宇，香火鼎盛，周邊更延伸出許多知名松江路地下算命街與麻糬老店。" },
+            { id: 29, name: "迪化街老街 / 大稻埕碼頭", station: "大橋頭", themes: ["history", "food", "photo"], open: 9, close: 22, duration: 2, optimalSlot: "afternoon", optimalSlotDesc: "15:30-19:00 (老街巡禮至碼頭看夕陽貨櫃)", avgCost: 200, desc: "保存極度完整的閩南與巴洛克老式中藥乾貨店，步行可直達貨櫃市集，看日落喝微醺調酒。" },
+            { id: 30, name: "大湖公園錦帶橋", station: "大湖公園", themes: ["nature", "photo"], open: 0, close: 24, duration: 1.5, optimalSlot: "morning", optimalSlotDesc: "07:30-09:30 (如薄霧山水畫般的清晨仙境)", avgCost: 0, desc: "曾登上國際媒體的中國古風「錦帶橋」，白鷺鷥與落羽松依傍湖面，宛如山水國畫卷軸。" },
+            { id: 31, name: "美麗華百樂園摩天輪", station: "劍南路", themes: ["shopping", "family"], open: 11, close: 22, duration: 1.5, optimalSlot: "evening", optimalSlotDesc: "19:00-21:00 (浪漫巨幅綠光城市夜景)", avgCost: 200, desc: "大直地區最奪目的地標，巨型巨幅綠光摩天輪升上夜空，是情侶約會與闔家欣賞夜景的首選。" },
+            { id: 32, name: "台北市立動物園", station: "動物園", themes: ["family", "nature"], open: 9, close: 17, duration: 3, optimalSlot: "morning", optimalSlotDesc: "09:00-12:00 (動物精神最飽滿的參觀期)", avgCost: 60, desc: "全台規模最大的都會動物園，近距離觀賞大熊貓與企鵝，更可接駁貓空纜車上山品茗。" }
+        ];
+
+        let selectedStations = new Set();
+        let selectedThemes = new Set(["food", "nature"]); 
+        let currentLineFilter = "ALL";
+        
+        let userGPSCoords = null; 
+        let detectedStartStation = "台北車站"; 
+
+        document.addEventListener("DOMContentLoaded", () => {
+            renderStations();
+            renderThemes();
+            document.getElementById("station-search").addEventListener("input", renderStations);
+        });
+
+        function renderStations() {
+            const container = document.getElementById("station-container");
+            const searchVal = document.getElementById("station-search").value.trim().toLowerCase();
+            container.innerHTML = "";
+
+            METRO_STATIONS.forEach(station => {
+                if (currentLineFilter !== "ALL" && !station.lines.includes(currentLineFilter)) return;
+                if (searchVal && !station.name.toLowerCase().includes(searchVal)) return;
+
+                const isSelected = selectedStations.has(station.name);
+                const btn = document.createElement("button");
+                btn.onclick = () => toggleStation(station.name);
+                btn.className = `p-2 text-xs font-bold rounded-xl transition-all border text-left flex flex-col justify-between h-14 ${
+                    isSelected 
+                    ? "bg-indigo-600 text-white border-indigo-700 shadow-xs scale-[0.98]" 
+                    : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                }`;
+
+                let badgeHTML = station.lines.map(l => {
+                    const color = LINE_MAP[l] ? LINE_MAP[l].color : "#64748b";
+                    return `<span class="inline-block w-2.5 h-2.5 rounded-full" style="background-color: ${color}"></span>`;
+                }).join(" ");
+
+                btn.innerHTML = `
+                    <span class="truncate">${station.name}</span>
+                    <div class="flex items-center gap-1 mt-1">${badgeHTML}</div>
+                `;
+                container.appendChild(btn);
+            });
+            updateSelectedCount();
+        }
+
+        function filterLine(lineCode) {
+            currentLineFilter = lineCode;
+            document.querySelectorAll(".line-tab").forEach(tab => {
+                tab.classList.remove("bg-white", "shadow-sm", "text-slate-900");
+                tab.classList.add("text-slate-600");
+            });
+            event.target.classList.add("bg-white", "shadow-sm", "text-slate-900");
+            renderStations();
+        }
+
+        function toggleStation(name) {
+            if (selectedStations.has(name)) {
+                selectedStations.delete(name);
+            } else {
+                selectedStations.add(name);
+            }
+            renderStations();
+        }
+
+        function clearAllStations() {
+            selectedStations.clear();
+            renderStations();
+        }
+
+        function updateSelectedCount() {
+            document.getElementById("selected-count").innerText = `已選 ${selectedStations.size} 站`;
+        }
+
+        function renderThemes() {
+            const container = document.getElementById("theme-container");
+            container.innerHTML = "";
+            THEMES.forEach(t => {
+                const isSelected = selectedThemes.has(t.id);
+                const btn = document.createElement("button");
+                btn.onclick = () => toggleTheme(t.id);
+                btn.className = `py-2.5 px-4 rounded-xl font-bold text-xs border transition-all text-center ${
+                    isSelected
+                    ? "bg-gradient-to-br from-indigo-500 to-blue-600 text-white border-indigo-600 shadow-md shadow-indigo-500/10"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                }`;
+                btn.innerText = t.label;
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleTheme(id) {
+            if (selectedThemes.has(id)) {
+                if (selectedThemes.size > 1) selectedThemes.delete(id);
+            } else {
+                selectedThemes.add(id);
+            }
+            renderThemes();
+        }
+
+        function updateBudgetDisplay(val) {
+            document.getElementById("budget-display").innerText = val;
+        }
+
+        function detectUserLocation() {
+            const statusLabel = document.getElementById("gps-status");
+            const btn = document.getElementById("gps-btn");
+
+            if (!navigator.geolocation) {
+                statusLabel.innerText = "❌ 瀏覽器不支援 GPS";
+                return;
+            }
+
+            btn.disabled = true;
+            statusLabel.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> GPS 精確定位中...`;
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userGPSCoords = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+
+                    let closestStation = "台北車站";
+                    let minDistance = Infinity;
+
+                    METRO_STATIONS.forEach(station => {
+                        let d = calculateHaversineDistance(userGPSCoords.lat, userGPSCoords.lng, station.lat, station.lng);
+                        if (d < minDistance) {
+                            minDistance = d;
+                            closestStation = station.name;
+                        }
+                    });
+
+                    detectedStartStation = closestStation;
+                    statusLabel.className = "text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500 text-white border border-emerald-600 shadow-sm";
+                    statusLabel.innerHTML = `🎯 精準導航起點：目前位置`;
+                    btn.disabled = false;
+                },
+                (error) => {
+                    console.error(error);
+                    statusLabel.className = "text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700 border border-amber-200";
+                    statusLabel.innerText = "⚠️ 權限拒絕，預設以台北車站導航";
+                    userGPSCoords = null;
+                    detectedStartStation = "台北車站";
+                    btn.disabled = false;
+                },
+                { enableHighAccuracy: true, timeout: 8000 }
+            );
+        }
+
+        function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; 
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        }
+
+        // 智慧黃金動線排程演算法
+        function generateItinerary() {
+            const budgetLimit = parseFloat(document.getElementById("budget-slider").value);
+            const startTimeStr = document.getElementById("departure-time").value;
+            
+            // 1. 篩選符合主題的景點
+            let pool = SCENIC_SPOTS.filter(spot => spot.themes.some(t => selectedThemes.has(t)));
+
+            // 2. 如果使用者有指定特定捷運站，則「優先/限定」該些站點的景點
+            if (selectedStations.size > 0) {
+                pool = pool.filter(spot => selectedStations.has(spot.station));
+            }
+
+            if (pool.length === 0) {
+                alert("找不到符合目前篩選條件的景點，請多選一些主題或車站試試！");
+                return;
+            }
+
+            // 3. 排序優化：依據與「定位起點車站」的捷運路網地理鄰近度排序（黃金動線防來回奔波）
+            const startStationObj = METRO_STATIONS.find(s => s.name === detectedStartStation) || METRO_STATIONS.find(s => s.name === "台北車站");
+            
+            let currentLat = startStationObj.lat;
+            let currentLng = startStationObj.lng;
+            let currentStationName = startStationObj.name;
+
+            let route = [];
+            let totalCost = 0;
+            let unvisited = [...pool];
+
+            // 貪婪演算法找鄰近低成本動線
+            while (unvisited.length > 0 && route.length < 5) { // 一天上限排5個點確保精緻度
+                unvisited.sort((a, b) => {
+                    let staA = METRO_STATIONS.find(s => s.name === a.station);
+                    let staB = METRO_STATIONS.find(s => s.name === b.station);
+                    let distA = calculateHaversineDistance(currentLat, currentLng, staA.lat, staA.lng);
+                    let distB = calculateHaversineDistance(currentLat, currentLng, staB.lat, staB.lng);
+                    return distA - distB;
+                });
+
+                let candidate = unvisited.shift();
+                if (totalCost + candidate.avgCost <= budgetLimit) {
+                    route.push(candidate);
+                    totalCost += candidate.avgCost;
+                    let nextSta = METRO_STATIONS.find(s => s.name === candidate.station);
+                    currentLat = nextSta.lat;
+                    currentLng = nextSta.lng;
+                }
+            }
+
+            if (route.length === 0) {
+                alert("目前預算上限過低，無法排入任何精選景點，請調高預算上限！");
+                return;
+            }
+
+            // 4. 動態動線時間軸與即時轉乘計算
+            let html = "";
+            let [hours, minutes] = startTimeStr.split(":").map(Number);
+            let currentTimeInMinutes = hours * 60 + minutes;
+
+            let totalTransitTime = 0;
+            let totalSpotDuration = 0;
+            let lastStation = startStationObj;
+
+            route.forEach((spot, index) => {
+                let spotSta = METRO_STATIONS.find(s => s.name === spot.station);
+                
+                // 模擬兩捷運站間的通行時間：Haversine 距離 * 6分鐘/km + 3分鐘緩衝
+                let dist = calculateHaversineDistance(lastStation.lat, lastStation.lng, spotSta.lat, spotSta.lng);
+                let transitTime = Math.max(8, Math.round(dist * 5 + 4)); 
+                if (index === 0 && userGPSCoords) transitTime = Math.max(10, Math.round(dist * 6)); // 如果從GPS出發
+
+                totalTransitTime += transitTime;
+                currentTimeInMinutes += transitTime;
+
+                let arrivalTimeStr = minutesToTimeString(currentTimeInMinutes);
+                
+                // 景點停留
+                let durationMinutes = spot.duration * 60;
+                totalSpotDuration += durationMinutes;
+                let departureTimeStr = minutesToTimeString(currentTimeInMinutes + durationMinutes);
+
+                // 檢查是否開園 (防呆警告標籤)
+                let arrivalHourDecimal = currentTimeInMinutes / 60;
+                let isOpen = arrivalHourDecimal >= spot.open && arrivalHourDecimal <= spot.close;
+                let timeWarningHTML = isOpen 
+                    ? `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] px-2 py-0.5 rounded-md font-bold">🟢 營運中</span>` 
+                    : `<span class="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] px-2 py-0.5 rounded-md font-bold">⚠️ 已休園/休息</span>`;
+
+                // 產生 Google Maps 跨時空 A-to-B 導航矩陣連結
+                let mapOrigin = (index === 0 && userGPSCoords) 
+                    ? `${userGPSCoords.lat},${userGPSCoords.lng}` 
+                    : `捷運${lastStation.name}站`;
+                let mapDest = spot.name;
+                let gmapsURL = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(mapOrigin)}&destination=${encodeURIComponent(mapDest)}&travelmode=transit`;
+
+                // 捷運路線徽章
+                let lineBadges = spotSta.lines.map(l => {
+                    return `<span class="text-[10px] text-white px-2 py-0.5 rounded-md font-bold" style="background-color:${LINE_MAP[l].color}">${LINE_MAP[l].name}</span>`;
+                }).join(" ");
+
+                html += `
+                <div class="relative pl-2 group">
+                    <div class="absolute -left-[35px] top-1.5 bg-gradient-to-br from-indigo-500 to-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-md z-10">
+                        ${index + 1}
+                    </div>
+                    
+                    <div class="bg-white/60 hover:bg-white rounded-2xl p-5 border border-slate-100 hover:border-indigo-200 shadow-xs hover:shadow-md transition-all duration-300 space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div class="space-y-1">
+                                <span class="text-[11px] font-mono font-bold text-indigo-600 block bg-indigo-50 px-2 py-0.5 rounded-md inline-block">
+                                    ${arrivalTimeStr} - ${departureTimeStr} (${spot.duration} 小時)
+                                </span>
+                                <a href="${gmapsURL}" target="_blank" class="text-base font-extrabold text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-1.5 group/link">
+                                    ${spot.name}
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-400 group-hover/link:text-indigo-500 transition-colors"></i>
+                                </a>
+                            </div>
+                            <div class="flex items-center gap-1.5 self-start sm:self-center">
+                                ${timeWarningHTML}
+                                ${lineBadges}
+                            </div>
+                        </div>
+
+                        <p class="text-xs text-slate-500 leading-relaxed">${spot.desc}</p>
+
+                        <div class="pt-2 border-t border-slate-100/70 flex flex-wrap items-center justify-between gap-3 text-[11px]">
+                            <div class="flex items-center gap-4 text-slate-400">
+                                <span><i class="fa-solid fa-train-subway text-slate-300 mr-1"></i>核心站點：<b>捷運${spot.station}站</b></span>
+                                <span><i class="fa-solid fa-wallet text-slate-300 mr-1"></i>預估費用：<b class="text-amber-600">TWD ${spot.avgCost}</b></span>
+                            </div>
+                            ${spot.optimalSlotDesc ? `
+                            <div class="text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1 font-medium flex items-center gap-1">
+                                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+                                <span>黃金時段推建：${spot.optimalSlotDesc}</span>
+                            </div>` : ''}
+                        </div>
+
+                        <div class="mt-2 bg-slate-50/80 rounded-xl p-2.5 text-[11px] text-slate-400 flex items-center gap-2 border border-slate-100">
+                            <i class="fa-solid fa-route text-indigo-400"></i>
+                            <span>從 <b>${index === 0 ? (userGPSCoords ? "我目前的位置" : "起點大站台北車站") : "前一站【" + lastStation.name + "】"}</b> 捷運轉乘步行至此，實時路況預估耗時 <b class="text-slate-600 font-bold">${transitTime} 分鐘</b></span>
+                        </div>
+                    </div>
+                </div>
+                `;
+
+                currentTimeInMinutes += durationMinutes;
+                lastStation = spotSta;
+            });
+
+            // 5. 渲染儀表板數據
+            document.getElementById("empty-state").classList.add("hidden");
+            document.getElementById("navigation-banner").classList.remove("hidden");
+            
+            const dashboard = document.getElementById("itinerary-dashboard");
+            dashboard.classList.remove("hidden");
+            
+            document.getElementById("stat-spots").innerText = `${route.length} 個景點`;
+            document.getElementById("stat-duration").innerText = `${(totalSpotDuration / 60).toFixed(1)} 小時`;
+            document.getElementById("stat-transit").innerText = `${totalTransitTime} 分鐘`;
+            document.getElementById("stat-cost").innerText = `TWD ${totalCost} 元`;
+
+            document.getElementById("timeline-flow").innerHTML = html;
+            
+            // 平滑滾動到結果區域
+            dashboard.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function minutesToTimeString(minutes) {
+            let h = Math.floor(minutes / 60) % 24;
+            let m = Math.floor(minutes % 60);
+            return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+        }
+    </script>
+</body>
+</html>
